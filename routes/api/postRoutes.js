@@ -1,5 +1,6 @@
 const router = require('express').Router();
-const {Post, User} = require('../../models');
+const {Vote, Post, User} = require('../../models');
+const sequelize = require('../../config/connection.js');
 
 router.get('/', (req, res) => {
     Post.findAll({
@@ -8,7 +9,10 @@ router.get('/', (req, res) => {
         include: {
             model: User,
             attributes: ['username']
-        }
+        },
+        [
+            sequelize.literal('(SELECT COUNT(*) FROM vote WHERE post.id = vote.post_id)', 'vote_count')
+        ]
     })
     .then(dbPostData => res.json(dbPostData))
     .catch(err => {
@@ -26,7 +30,10 @@ router.get('/:id', (req, res) => {
         include: {
             model: User,
             attributes: 'username'
-        }
+        },
+        [
+            sequelize.literal('(SELECT COUNT(*) FROM vote WHERE post.id = vote.post_id)', 'vote_count')
+        ]
     })
     .then(dbPostData => {
         if(!dbPostData){
@@ -77,6 +84,15 @@ router.put('/:id', (req, res) => {
         res.status(500).json(err);
     });
 });
+
+router.put('/upvote', (req, res) => {
+    Post.upvote(req.body, {Vote})
+        .then(dbPostData => res.json(dbPostData))
+        .catch(err => {
+            console.log(err);
+            res.status(400).json(err);
+        });
+}); 
 
 router.delete('/:id', (req, res) => {
     Post.destroy({
